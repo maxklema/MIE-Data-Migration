@@ -1,9 +1,9 @@
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
-// const error = require('../../errors.cjs');
 const { workerData, parentPort } = require('worker_threads');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
+const path = require('path');
 
 //this function is used for multi-threading
 async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping){
@@ -32,6 +32,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
     for (const [key, value] of map.entries()){
         if (value == "file"){
 
+            console.log(upload_data[key]);
             filename = upload_data[key];
 
             //convert HTM and TIF file types
@@ -41,7 +42,8 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
                 filename.endsWith(".tif") == true ? convertFile(4, ".png", 3) : convertFile(5, ".png", 3);
             }
 
-            form.append(value, fs.createReadStream(filename));
+            console.log("Uploading " + path.join('./Data', filename));
+            form.append(value, fs.createReadStream(path.join('./Data', filename)));
 
         } else {
             let headerValue;
