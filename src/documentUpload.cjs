@@ -18,34 +18,10 @@ let csvBasename;
 let successCsvPath;
 let errorCsvPath;
 
-let file = "filePath";
-let mrnumber = "mrNumber";
-let pat_id = "patID";
+let file = "filepath";
+let mrnumber = "mrnumber";
+let pat_id = "patid";
 let mapping = "two"; //temp
-
-// success file CSV writer
-const successCSVWriter = createCsvWriter({
-    path: `${successCsvPath}`,
-    header: [
-        {id: 'file', title: 'FILE'},
-        {id: 'pat_id', title: 'PAT_ID'},
-        {id: 'mrnumber', title: 'MRNUMBER'},
-        {id: 'status', title: 'STATUS'}
-    ],
-    append: true
-});
-
-// Error file CSV Writer
-const errorCSVWriter = createCsvWriter({
-    path: `${errorCsvPath}`,
-    header: [
-        {id: 'file', title: 'FILE'},
-        {id: 'pat_id', title: 'PAT_ID'},
-        {id: 'mrnumber', title: 'MRNUMBER'},
-        {id: 'status', title: 'STATUS'}
-    ],
-    append: true
-});
 
 //gather already-uploaded files
 async function loadFiles(){
@@ -83,7 +59,6 @@ async function uploadDocs(csvFiles, config){
     //set output directory
     outputDir = configJSON["output_dir"];
     outputDir = `${path.dirname(outputDir)}/${path.basename(outputDir)}`;
-    // console.log("Expected: " + outputDir + " ", path.dirname(outputDir));
     if (!fs.existsSync(outputDir)){
         try {
             fs.mkdirSync(outputDir, { recursive: true} )
@@ -94,9 +69,9 @@ async function uploadDocs(csvFiles, config){
     }
     
     //loop over each input data file
-    for (let i = 0; i < Object.keys(csvFiles).length; i++){
+    for (let j = 0; j < Object.keys(csvFiles).length; j++){
 
-        csvBasename = csvFiles[i]["basename"];
+        csvBasename = csvFiles[j]["basename"];
         const headers = [];
         const docQueue = [];
         let workerPromises = [];
@@ -107,8 +82,8 @@ async function uploadDocs(csvFiles, config){
         const resultCsvDir = `${outputDir}/${csvBasename.substring(0, csvBasename.indexOf("."))}`        
         if (!fs.existsSync(resultCsvDir)){
             fs.mkdirSync(resultCsvDir, { recursive: true} );
-            fs.writeFileSync(path.join(resultCsvDir, "errors.csv"), "FILE,PAT_ID,MRNUMBER,STATUS\n", 'utf8');
-            fs.writeFileSync(path.join(resultCsvDir, "success.csv"), "FILE,PAT_ID,MRNUMBER,STATUS\n", 'utf8');
+            fs.writeFileSync(path.join(resultCsvDir, "errors.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
+            fs.writeFileSync(path.join(resultCsvDir, "success.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
         }
 
         errorCsvPath = path.join(resultCsvDir, "errors.csv");
@@ -124,12 +99,12 @@ async function uploadDocs(csvFiles, config){
 
         //grabs all of the headers from the CSV file.
         csvParser.on('error', (err) => {
-            throw error(`ERROR: there was an issue reading the headers for \'${path.join(csvFiles[i]["dirname"], csvBasename)}\'. Make sure they are fomratted correctly. ${err}`)
+            throw error(`ERROR: there was an issue reading the headers for \'${path.join(csvFiles[j]["dirname"], csvBasename)}\'. Make sure they are fomratted correctly. ${err}`)
         })
 
         //creates a unique key for each row and pushes rows to queue.
         await pipeline(
-            fs.createReadStream(path.join(csvFiles[i]["dirname"], csvBasename)),
+            fs.createReadStream(path.join(csvFiles[j]["dirname"], csvBasename)),
             csvParser,
             new stream.Writable({
                 objectMode: true,
@@ -151,7 +126,7 @@ async function uploadDocs(csvFiles, config){
             })
         );
 
-        //create new workers
+        //create x new workers 
         for (i = 0; i < MAX_WORKERS; i++){
             const addWorker = new Promise((resolve) => {
     
@@ -165,7 +140,7 @@ async function uploadDocs(csvFiles, config){
                     const worker = new Worker(path.join(__dirname, "uploadDoc.cjs"), { workerData: {row: row, URL: mie.URL.value, Cookie: mie.Cookie.value, Practice: mie.practice.value, Mapping: mapping}})
         
                     worker.on('message', (message) => {
-                        if (message.success == true){ 
+                        if (message.success == true){
                             success.push({ file: row[file], pat_id: row[pat_id] ? row[pat_id] : "null", mrnumber: row[mrnumber] ? row[mrnumber] : "null", status: 'Success'});
                             newWorker();
                         } else if (message.success == false) {
@@ -184,15 +159,42 @@ async function uploadDocs(csvFiles, config){
 
         //wait for all the workers to finish migrating
         await Promise.all(workerPromises)
+        
         console.log(`${'\x1b[1;32m✓\x1b[0m'} Migration job completed for ${csvBasename}`);
 
+        // success file CSV writer
+        const successCSVWriter = createCsvWriter({
+            path: successCsvPath,
+            header: [
+                {id: 'file', title: file},
+                {id: 'pat_id', title: pat_id},
+                {id: 'mrnumber', title: mrnumber},
+                {id: 'status', title: 'status'}
+            ],
+            append: true
+        });
+
+        // Error file CSV Writer
+        const errorCSVWriter = createCsvWriter({
+            path: errorCsvPath,
+            header: [
+                {id: 'file', title: file},
+                {id: 'pat_id', title: pat_id},
+                {id: 'mrnumber', title: mrnumber},
+                {id: 'status', title: 'status'}
+            ],
+            append: true
+        });
+
         //write results to appropriate CSV file
+
         if (success.length != 0)
             successCSVWriter.writeRecords(success);
         
         if (errors.length != 0)
             errorCSVWriter.writeRecords(errors);  
         
+        i = 0;
     }
 }
 

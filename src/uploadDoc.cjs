@@ -32,7 +32,6 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
     for (const [key, value] of map.entries()){
         if (value == "file"){
 
-            console.log(upload_data[key]);
             filename = upload_data[key];
 
             //convert HTM and TIF file types
@@ -42,7 +41,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
                 filename.endsWith(".tif") == true ? convertFile(4, ".png", 3) : convertFile(5, ".png", 3);
             }
 
-            console.log("Uploading " + path.join('./Data', filename));
+            process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Uploading ${path.join('./Data', filename)}\r`);
             form.append(value, fs.createReadStream(path.join('./Data', filename)));
 
         } else {

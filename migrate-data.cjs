@@ -69,6 +69,7 @@ const getInputSpecs = () => {
     mie.practice.value = configJSON["handle"];
     mie.URL.value = configJSON["url"];
 
+    process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Getting Session ID... \r`)
     await mie.createRecord("patients", { "first_name": "test"});
     console.log(`${'\x1b[1;32m✓\x1b[0m'} Received Session ID: ${mie.Cookie.value}`);
 
