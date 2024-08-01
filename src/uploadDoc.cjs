@@ -5,7 +5,6 @@ const { workerData, parentPort } = require('worker_threads');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
 const path = require('path');
 
-
 const getBar = (uploadStatus) => {
 
     let percentage = parseFloat(((uploadStatus["uploaded"] / uploadStatus["total"]) * 100).toFixed(2));
@@ -73,7 +72,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     axios.post(URL, form, {
         headers: {
             'Content-Type': 'multi-part/form-data', 
-            'cookie': `wc_mehr_${Practice}_session_id=${Cookie}`
+            'cookie': `wc_miehr_${Practice}_session_id=${Cookie}`
         }
     })
     .then(response => {
@@ -90,4 +89,28 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
 
 }
 
-uploadSingleDocument(workerData['row'], workerData['URL'], workerData['Cookie'], workerData['Practice'], workerData['Mapping'], workerData['Directory'], workerData['uploadStatus']);
+// uploadSingleDocument(workerData['row'], workerData['URL'], workerData['Cookie'], workerData['Practice'], workerData['Mapping'], workerData['Directory'], workerData['uploadStatus']);
+
+parentPort.on('message', async (message) => {
+    if (message.type == "job"){
+
+        const uploadStatusData = {
+            "total": message["data"]["total"],
+            "uploaded": message["data"]["uploaded"]
+        }
+
+        const workerData = {
+            row: message["row"], 
+            URL: message["data"]["URL"],
+            Cookie: message["data"]["cookie"],
+            Practice: message["data"]["practice"],
+            Mapping: message["data"]["mapping"],
+            Directory: message["data"]["Directory"],
+            uploadStatus: uploadStatusData
+        }
+
+        uploadSingleDocument(workerData["row"], workerData["URL"], workerData["Cookie"], workerData["Practice"], workerData["Mapping"], workerData["Directory"], workerData["uploadStatus"]);
+    } else if (message.type == "exit"){
+        parentPort.close();
+    }
+});
