@@ -118,6 +118,7 @@ async function uploadDocs(csvFiles, config){
         const success = [];
         const errors = [];
         let totalFiles = 0;
+        let skippedFiles = 0;
         
         //set the mapping
         setMapping(config["mapping"]);
@@ -145,13 +146,11 @@ async function uploadDocs(csvFiles, config){
                 
             worker.on('message', (message) => {
                 if (message.success == true){
-                    success.push("success!");
-
+                    success.push({ file: message["row"][file], pat_id:  message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: 'Success'});
                 } else if (message.success == false) {
-                    // console.log("error!");
-
+                    errors.push({ file: message["row"][file], pat_id:  message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: 'Success'});
                 } else {
-                    errors.push("Error!");
+                    errors.push({ file: message["row"][file], pat_id:  message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: 'Success'})
                 }
 
                 // Mark worker as idle
@@ -174,16 +173,15 @@ async function uploadDocs(csvFiles, config){
 
                     worker.postMessage({ type: 'job', row: row, data: data });
                     workerState.busy = true; // Mark worker as busy
-                } else if (docQueue.length < MAX_WORKERS && success.length + errors.length == totalFiles){
+                } else if (docQueue.length < MAX_WORKERS && skippedFiles + success.length + errors.length == totalFiles){
+                    // console.log("here?");
                     workerPromises.forEach(worker => {
                         worker.instance.postMessage({type: "exit"})
                     })
                 }
             });
 
-            worker.on("exit", () => {
-                // console.log("exited!");
-            })
+            worker.on("exit", () => {});
         }
 
         for await (const row of readInputRows(path.join(csvFiles[j]["dirname"], csvBasename))){
@@ -195,10 +193,12 @@ async function uploadDocs(csvFiles, config){
             }
         
             //add files to queue that have not already been migrated
-            // if (!processedFiles.has(getKey(key))){
-            processedFiles.add(getKey(key));
-            docQueue.push(row); //push to queue for workers
-            // }
+            if (!processedFiles.has(getKey(key))){
+                processedFiles.add(getKey(key));
+                docQueue.push(row); //push to queue for workers
+            } else {
+                skippedFiles += 1;
+            }
             
             totalFiles += 1;
             
@@ -220,6 +220,12 @@ async function uploadDocs(csvFiles, config){
                     availableWorker.busy = true;
                 }
             }
+        }
+        
+        if (skippedFiles == totalFiles){
+            workerPromises.forEach(worker => {
+                worker.instance.postMessage({type: "exit"})
+            })
         }
 
         await Promise.all(workerPromises.map(worker => new Promise(resolve => {

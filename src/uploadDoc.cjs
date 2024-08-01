@@ -78,13 +78,13 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     .then(response => {
         const result = response.headers['x-status'];
         if (result != 'success'){
-            parentPort.postMessage({ success: false, filename: filename, result: response.headers['x-status_desc'] });
+            parentPort.postMessage({ success: false, row: upload_data, filename: filename, result: response.headers['x-status_desc'] });
         } else {
-            parentPort.postMessage({ success: true, filename: filename, result: response.headers['x-status_desc'] });
+            parentPort.postMessage({ success: true, row: upload_data, filename: filename, result: response.headers['x-status_desc'] });
         } 
     })
     .catch((err) => {
-        parentPort.postMessage({ success: 'error', filename: filename, result: err.message});
+        parentPort.postMessage({ success: 'error', row: upload_data, filename: filename, result: err.message});
     });
 
 }
