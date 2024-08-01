@@ -8,6 +8,7 @@ const os = require("os");
 const { pipeline } = require('stream/promises');
 const stream = require('stream');
 const { error } = require('console');
+const { mapOne, mapTwo } = require('./docMappings.cjs')
 
 let MAX_WORKERS;
 const processedFiles = new Set();
@@ -18,10 +19,10 @@ let csvBasename;
 let successCsvPath;
 let errorCsvPath;
 
-let file = "filepath";
-let mrnumber = "mrnumber";
-let pat_id = "patid";
-let mapping = "two"; //temp
+let file;
+let mrnumber;
+let pat_id;
+let map;
 
 //gather already-uploaded files
 async function loadFiles(){
@@ -48,6 +49,25 @@ function getKey(obj){
     return JSON.stringify(obj);
 }
 
+const setMapping = (Mapping) => {
+
+    map = Mapping == "one" ? mapOne : mapTwo;
+
+    for (const [key, value] of map.entries()){
+        switch(value) {
+            case "file":
+                file = key;
+                break;
+            case "pat_id":
+                pat_id = key;
+                break;
+            case "mrnumber":
+                mrnumber = key;
+                break;
+        }
+    }
+}
+
 //import multiple documents through a CSV file
 async function uploadDocs(csvFiles, config){
     
@@ -72,12 +92,17 @@ async function uploadDocs(csvFiles, config){
     for (let j = 0; j < Object.keys(csvFiles).length; j++){
 
         csvBasename = csvFiles[j]["basename"];
+        let csvDirname = csvFiles[j]["dirname"];
         const headers = [];
         const docQueue = [];
         let workerPromises = [];
         const success = [];
         const errors = [];
+        let totalFiles = 0;
         
+        //set the mapping
+        setMapping(config["mapping"]);
+
         //create success and errors.csv file if one does not already exist
         const resultCsvDir = `${outputDir}/${csvBasename.substring(0, csvBasename.indexOf("."))}`        
         if (!fs.existsSync(resultCsvDir)){
@@ -117,14 +142,18 @@ async function uploadDocs(csvFiles, config){
                     }
 
                     //add files to queue that have not already been migrated
-                    if (!processedFiles.has(getKey(key))){
-                        processedFiles.add(getKey(key));
-                        docQueue.push(row); //push to queue for workers
-                    }
+                    // if (!processedFiles.has(getKey(key))){
+                    processedFiles.add(getKey(key));
+                    docQueue.push(row); //push to queue for workers
+                    // }
+                    
+                    totalFiles += 1;
+
                     callback(); //repeat for each row of data
                 }
             })
         );
+            // console.log(totalFiles);
 
         //create x new workers 
         for (i = 0; i < MAX_WORKERS; i++){
@@ -132,12 +161,29 @@ async function uploadDocs(csvFiles, config){
     
                 function newWorker(){
                     const row = docQueue.shift();
+                    console.log(docQueue.length);
                     if (!row){
                         resolve();
                         return;
                     }
     
-                    const worker = new Worker(path.join(__dirname, "uploadDoc.cjs"), { workerData: {row: row, URL: mie.URL.value, Cookie: mie.Cookie.value, Practice: mie.practice.value, Mapping: mapping}})
+                    const uploadStatusData = {
+                        "total": totalFiles,
+                        "uploaded": success.length + errors.length
+                    }
+                    
+                    const workerData = {
+                        workerData: {
+                            row: row, 
+                            URL: mie.URL.value, 
+                            Cookie: mie.Cookie.value, 
+                            Practice: mie.practice.value, 
+                            Mapping: config["mapping"], 
+                            Directory: csvDirname,
+                            uploadStatus: uploadStatusData
+                        }
+                    }
+                    const worker = new Worker(path.join(__dirname, "uploadDoc.cjs"), workerData);
         
                     worker.on('message', (message) => {
                         if (message.success == true){
@@ -159,15 +205,16 @@ async function uploadDocs(csvFiles, config){
 
         //wait for all the workers to finish migrating
         await Promise.all(workerPromises)
-        
+
+        process.stdout.write('\x1b[2K'); //clear current line
         console.log(`${'\x1b[1;32m✓\x1b[0m'} Migration job completed for ${csvBasename}`);
 
         // success file CSV writer
         const successCSVWriter = createCsvWriter({
             path: successCsvPath,
             header: [
-                {id: 'file', title: file},
-                {id: 'pat_id', title: pat_id},
+                {id: 'file', title: "filePath"},
+                {id: 'pat_id', title: "patID"},
                 {id: 'mrnumber', title: mrnumber},
                 {id: 'status', title: 'status'}
             ],
@@ -187,7 +234,6 @@ async function uploadDocs(csvFiles, config){
         });
 
         //write results to appropriate CSV file
-
         if (success.length != 0)
             successCSVWriter.writeRecords(success);
         

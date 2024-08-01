@@ -5,8 +5,19 @@ const { workerData, parentPort } = require('worker_threads');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
 const path = require('path');
 
+
+const getBar = (uploadStatus) => {
+
+    let percentage = parseFloat(((uploadStatus["uploaded"] / uploadStatus["total"]) * 100).toFixed(2));
+    const total = 20; //length of bar
+    const progress = Math.round(percentage / 5);
+    const emptySpace = total - progress;
+
+    return `${'\x1b[34m█\x1b[0m'.repeat(progress)}${'\x1b[34m▒\x1b[0m'.repeat(emptySpace)} ${`\x1b[34m${`${percentage}%`}\x1b[0m`} (${uploadStatus["uploaded"]}/${uploadStatus["total"]})`
+}
+
 //this function is used for multi-threading
-async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping){
+async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping, Directory, uploadStatus){
 
     let map;
     let filename;
@@ -33,6 +44,10 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
         if (value == "file"){
 
             filename = upload_data[key];
+            
+            if (!filename){
+                throw Error(`ERROR: Could not find the filepath for this upload. Did you set the correct mapping?`);
+            }
 
             //convert HTM and TIF file types
             if (filename.endsWith(".htm")){
@@ -41,7 +56,10 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
                 filename.endsWith(".tif") == true ? convertFile(4, ".png", 3) : convertFile(5, ".png", 3);
             }
 
-            process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Uploading ${path.join('./Data', filename)}\r`);
+            const bar = getBar(uploadStatus);
+            process.stdout.write('\x1b[2K'); //clear current line
+            process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Upload Status: ${bar} | Uploading ${`\x1b[34m${path.join('./Data', filename)}\x1b[0m`} \r`);
+
             form.append(value, fs.createReadStream(path.join('./Data', filename)));
 
         } else {
@@ -55,7 +73,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
     axios.post(URL, form, {
         headers: {
             'Content-Type': 'multi-part/form-data', 
-            'cookie': `wc_miehr_${Practice}_session_id=${Cookie}`
+            'cookie': `wc_mehr_${Practice}_session_id=${Cookie}`
         }
     })
     .then(response => {
@@ -72,4 +90,4 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping)
 
 }
 
-uploadSingleDocument(workerData['row'], workerData['URL'], workerData['Cookie'], workerData['Practice'], workerData['Mapping']);
+uploadSingleDocument(workerData['row'], workerData['URL'], workerData['Cookie'], workerData['Practice'], workerData['Mapping'], workerData['Directory'], workerData['uploadStatus']);
