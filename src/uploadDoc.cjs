@@ -5,7 +5,6 @@ const { workerData, parentPort } = require('worker_threads');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
 const path = require('path');
 
-
 const getBar = (uploadStatus) => {
 
     let percentage = parseFloat(((uploadStatus["uploaded"] / uploadStatus["total"]) * 100).toFixed(2));
@@ -58,7 +57,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
 
             const bar = getBar(uploadStatus);
             process.stdout.write('\x1b[2K'); //clear current line
-            process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Upload Status: ${bar} | Uploading ${`\x1b[34m${path.join('./Data', filename)}\x1b[0m`} \r`);
+            process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Upload Status: ${bar} | Uploading ${`\x1b[34m${path.join(Directory, filename)}\x1b[0m`} \r`);
 
             form.append(value, fs.createReadStream(path.join('./Data', filename)));
 
@@ -73,21 +72,43 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     axios.post(URL, form, {
         headers: {
             'Content-Type': 'multi-part/form-data', 
-            'cookie': `wc_mehr_${Practice}_session_id=${Cookie}`
+            'cookie': `wc_miehr_${Practice}_session_id=${Cookie}`
         }
     })
     .then(response => {
         const result = response.headers['x-status'];
         if (result != 'success'){
-            parentPort.postMessage({ success: false, filename: filename, result: response.headers['x-status_desc'] });
+            parentPort.postMessage({ success: false, row: upload_data, filename: filename, result: response.headers['x-status_desc'] });
         } else {
-            parentPort.postMessage({ success: true, filename: filename, result: response.headers['x-status_desc'] });
+            parentPort.postMessage({ success: true, row: upload_data, filename: filename, result: response.headers['x-status_desc'] });
         } 
     })
     .catch((err) => {
-        parentPort.postMessage({ success: 'error', filename: filename, result: err.message});
+        parentPort.postMessage({ success: 'error', row: upload_data, filename: filename, result: err.message});
     });
 
 }
 
-uploadSingleDocument(workerData['row'], workerData['URL'], workerData['Cookie'], workerData['Practice'], workerData['Mapping'], workerData['Directory'], workerData['uploadStatus']);
+parentPort.on('message', async (message) => {
+    if (message.type == "job"){
+
+        const uploadStatusData = {
+            "total": message["data"]["total"],
+            "uploaded": message["data"]["uploaded"]
+        }
+
+        const workerData = {
+            row: message["row"], 
+            URL: message["data"]["URL"],
+            Cookie: message["data"]["cookie"],
+            Practice: message["data"]["practice"],
+            Mapping: message["data"]["Mapping"],
+            Directory: message["data"]["Directory"],
+            uploadStatus: uploadStatusData
+        }
+
+        uploadSingleDocument(workerData["row"], workerData["URL"], workerData["Cookie"], workerData["Practice"], workerData["Mapping"], workerData["Directory"], workerData["uploadStatus"]);
+    } else if (message.type == "exit"){
+        parentPort.close();
+    }
+});
