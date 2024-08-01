@@ -57,7 +57,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
 
             const bar = getBar(uploadStatus);
             process.stdout.write('\x1b[2K'); //clear current line
-            process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Upload Status: ${bar} | Uploading ${`\x1b[34m${path.join('./Data', filename)}\x1b[0m`} \r`);
+            process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Upload Status: ${bar} | Uploading ${`\x1b[34m${path.join(Directory, filename)}\x1b[0m`} \r`);
 
             form.append(value, fs.createReadStream(path.join('./Data', filename)));
 
@@ -89,8 +89,6 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
 
 }
 
-// uploadSingleDocument(workerData['row'], workerData['URL'], workerData['Cookie'], workerData['Practice'], workerData['Mapping'], workerData['Directory'], workerData['uploadStatus']);
-
 parentPort.on('message', async (message) => {
     if (message.type == "job"){
 
@@ -104,7 +102,7 @@ parentPort.on('message', async (message) => {
             URL: message["data"]["URL"],
             Cookie: message["data"]["cookie"],
             Practice: message["data"]["practice"],
-            Mapping: message["data"]["mapping"],
+            Mapping: message["data"]["Mapping"],
             Directory: message["data"]["Directory"],
             uploadStatus: uploadStatusData
         }

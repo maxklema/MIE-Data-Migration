@@ -18,6 +18,7 @@ let outputDir;
 let csvBasename;
 let successCsvPath;
 let errorCsvPath;
+let delimiter;
 
 let file;
 let mrnumber;
@@ -74,7 +75,8 @@ async function* readInputRows(filename) {
         mapHeaders: ({ header }) => {
             headers.push(header);
             return header;
-        }
+        },
+        separator: delimiter
     });
 
     csvParser.on('error', (err) => {
@@ -107,6 +109,8 @@ async function uploadDocs(csvFiles, config){
             throw error(`ERROR: Invalid output directory: \'${outputDir}\'. ${err}`); 
         }   
     }
+
+    configJSON["csv_delimiter"] ?  delimiter = configJSON["csv_delimiter"] : delimiter = ",";
     
     //loop over each input data file
     for (let j = 0; j < Object.keys(csvFiles).length; j++){
@@ -233,7 +237,11 @@ async function uploadDocs(csvFiles, config){
         })))
 
         process.stdout.write('\x1b[2K'); //clear current line
-        console.log(`${'\x1b[1;32m✓\x1b[0m'} Migration job completed for ${csvBasename}`);
+        console.log(`\n${'\x1b[1;32m✓\x1b[0m'} ${`\x1b[1m\x1b[1;32m${`Migration job completed for ${csvBasename}`}\x1b[0m`}`);
+        console.log(`${'\x1b[34m➜\x1b[0m'} ${`\x1b[1m\x1b[34mJob Details\x1b[0m`}`)
+        console.log(`${'\x1b[34m➜\x1b[0m'} Files Uploaded: ${`\x1b[34m${success.length}\x1b[0m`}`)
+        console.log(`${'\x1b[34m➜\x1b[0m'} Files not Uploaded (errors): ${`\x1b[34m${errors.length}\x1b[0m`}`)
+        console.log(`${'\x1b[34m➜\x1b[0m'} Files Skipped (duplicates): ${`\x1b[34m${skippedFiles}\x1b[0m`}`)
 
         // success file CSV writer
         const successCSVWriter = createCsvWriter({
