@@ -1,12 +1,11 @@
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
-const { workerData, parentPort } = require('worker_threads');
+const { parentPort } = require('worker_threads');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
 const path = require('path');
 
 const getBar = (uploadStatus) => {
-
     let percentage = parseFloat(((uploadStatus["uploaded"] / uploadStatus["total"]) * 100).toFixed(2));
     const total = 20; //length of bar
     const progress = Math.round(percentage / 5);
@@ -20,7 +19,6 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
 
     let map;
     let filename;
-
     Mapping == "one" ? map = mapOne : map = mapTwo;
 
     function convertFile(extension_length, new_extension, new_storage){
@@ -41,9 +39,8 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     //iterate over each key
     for (const [key, value] of map.entries()){
         if (value == "file"){
-
             filename = upload_data[key];
-            
+
             if (!filename){
                 throw Error(`ERROR: Could not find the filepath for this upload. Did you set the correct mapping?`);
             }
@@ -68,7 +65,6 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
         }
     }
 
-    // log.createLog("info", `Document Upload Request:\nDocument Type: \"${upload_data['doc_type']}\"\nStorage Type: \"${upload_data['storage_type']}\"\n Patient ID: ${upload_data['pat_id']}`);
     axios.post(URL, form, {
         headers: {
             'Content-Type': 'multi-part/form-data', 
@@ -86,7 +82,6 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     .catch((err) => {
         parentPort.postMessage({ success: 'error', row: upload_data, filename: filename, result: err.message});
     });
-
 }
 
 parentPort.on('message', async (message) => {
@@ -109,6 +104,6 @@ parentPort.on('message', async (message) => {
 
         uploadSingleDocument(workerData["row"], workerData["URL"], workerData["Cookie"], workerData["Practice"], workerData["Mapping"], workerData["Directory"], workerData["uploadStatus"]);
     } else if (message.type == "exit"){
-        parentPort.close();
+        parentPort.close(); //terminate worker thread
     }
 });
