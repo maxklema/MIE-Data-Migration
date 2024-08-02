@@ -70,12 +70,7 @@ const setMapping = (Mapping) => {
 }
 
 async function* readInputRows(filename) {
-    const headers = [];
     const csvParser = csv({
-        mapHeaders: ({ header }) => {
-            headers.push(header);
-            return header;
-        },
         separator: delimiter
     });
 
@@ -118,9 +113,9 @@ async function uploadDocs(csvFiles, config){
         csvBasename = csvFiles[j]["basename"];
         let csvDirname = csvFiles[j]["dirname"];
         const docQueue = [];
-        let workerPromises = [];
-        const success = [];
-        const errors = [];
+        let workers = [];
+        let success = 0;
+        let errors = 0;
         let totalFiles = 0;
         let skippedFiles = 0;
         
@@ -131,117 +126,17 @@ async function uploadDocs(csvFiles, config){
         const resultCsvDir = `${outputDir}/${csvBasename.substring(0, csvBasename.indexOf("."))}`        
         if (!fs.existsSync(resultCsvDir)){
             fs.mkdirSync(resultCsvDir, { recursive: true} );
-            fs.writeFileSync(path.join(resultCsvDir, "errors.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
+            fs.writeFileSync(path.join(resultCsvDir, "success.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
+        } else if (!fs.existsSync(path.join(resultCsvDir, "success.csv"))){
             fs.writeFileSync(path.join(resultCsvDir, "success.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
         }
+
+        fs.writeFileSync(path.join(resultCsvDir, "errors.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
 
         errorCsvPath = path.join(resultCsvDir, "errors.csv");
         successCsvPath = path.join(resultCsvDir, "success.csv");
 
-        await loadFiles();
-
-        for (i = 0; i < MAX_WORKERS; i++){
-
-            const worker = new Worker(path.join(__dirname, "uploadDoc.cjs"));
-            workerPromises.push({
-                instance: worker,
-                busy: false
-            });
-                
-            worker.on('message', (message) => {
-                if (message.success == true){
-                    success.push({ file: message["row"][file], pat_id:  message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: 'Success'});
-                } else if (message.success == false) {
-                    errors.push({ file: message["row"][file], pat_id:  message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: 'Success'});
-                } else {
-                    errors.push({ file: message["row"][file], pat_id:  message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: 'Success'})
-                }
-
-                // Mark worker as idle
-                const workerState = workerPromises.find(w => w.instance === worker);
-                workerState.busy = false;
-
-                // Assign rows if available
-                if (docQueue.length > 0) {
-                    const row = docQueue.shift();
-
-                    const data = {
-                        Mapping: config["mapping"],
-                        Directory: csvDirname,
-                        total: totalFiles,
-                        uploaded: success.length + errors.length,
-                        cookie: mie.Cookie.value,
-                        URL: mie.URL.value,
-                        practice: mie.practice.value
-                    }
-
-                    worker.postMessage({ type: 'job', row: row, data: data });
-                    workerState.busy = true; // Mark worker as busy
-                } else if (docQueue.length < MAX_WORKERS && skippedFiles + success.length + errors.length == totalFiles){
-                    // console.log("here?");
-                    workerPromises.forEach(worker => {
-                        worker.instance.postMessage({type: "exit"})
-                    })
-                }
-            });
-
-            worker.on("exit", () => {});
-        }
-
-        for await (const row of readInputRows(path.join(csvFiles[j]["dirname"], csvBasename))){
-            const key = {
-                dataInput: csvBasename.substring(0, csvBasename.indexOf(".")), 
-                file: row[file], 
-                pat_id: row[pat_id] ? row[pat_id] : "null", 
-                mrnumber: row[mrnumber] ? row[mrnumber] : "null"
-            }
-        
-            //add files to queue that have not already been migrated
-            if (!processedFiles.has(getKey(key))){
-                processedFiles.add(getKey(key));
-                docQueue.push(row); //push to queue for workers
-            } else {
-                skippedFiles += 1;
-            }
-            
-            totalFiles += 1;
-            
-            const data = {
-                Mapping: config["mapping"],
-                Directory: csvDirname,
-                total: totalFiles,
-                uploaded: success.length + errors.length,
-                cookie: mie.Cookie.value,
-                URL: mie.URL.value,
-                practice: mie.practice.value
-            }
-
-            const availableWorker = workerPromises.find(w => !w.busy);
-            if (availableWorker){
-                const newRow = docQueue.shift();
-                if (newRow){
-                    availableWorker.instance.postMessage({ type: 'job', row: newRow, data: data });
-                    availableWorker.busy = true;
-                }
-            }
-        }
-        
-        if (skippedFiles == totalFiles){
-            workerPromises.forEach(worker => {
-                worker.instance.postMessage({type: "exit"})
-            })
-        }
-
-        await Promise.all(workerPromises.map(worker => new Promise(resolve => {
-            worker.instance.once('exit', () => resolve());
-        })))
-
-        process.stdout.write('\x1b[2K'); //clear current line
-        console.log(`\n${'\x1b[1;32m✓\x1b[0m'} ${`\x1b[1m\x1b[1;32m${`Migration job completed for ${csvBasename}`}\x1b[0m`}`);
-        console.log(`${'\x1b[34m➜\x1b[0m'} ${`\x1b[1m\x1b[34mJob Details\x1b[0m`}`)
-        console.log(`${'\x1b[34m➜\x1b[0m'} Files Uploaded: ${`\x1b[34m${success.length}\x1b[0m`}`)
-        console.log(`${'\x1b[34m➜\x1b[0m'} Files not Uploaded (errors): ${`\x1b[34m${errors.length}\x1b[0m`}`)
-        console.log(`${'\x1b[34m➜\x1b[0m'} Files Skipped (duplicates): ${`\x1b[34m${skippedFiles}\x1b[0m`}`)
+        await loadFiles(); //parse successful rows to avoid duplicate file uploads;
 
         // success file CSV writer
         const successCSVWriter = createCsvWriter({
@@ -267,12 +162,111 @@ async function uploadDocs(csvFiles, config){
             append: true
         });
 
-        //write results to appropriate CSV file
-        if (success.length != 0)
-            successCSVWriter.writeRecords(success);
+        for (i = 0; i < MAX_WORKERS; i++){
+            const worker = new Worker(path.join(__dirname, "uploadDoc.cjs"));
+            
+            workers.push({
+                instance: worker,
+                busy: false
+            });
+                
+            worker.on('message', (message) => {
+                if (message.success == true){
+                    success += 1;
+                    successCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                } else if (message.success == false) {
+                    errors += 1;
+                    errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                } else {
+                    errors += 1;
+                    errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                }
+
+                // Mark worker as idle
+                worker.busy = false;
+
+                // Assign rows if available
+                if (docQueue.length > 0) {
+                    const row = docQueue.shift();
+
+                    const data = {
+                        Mapping: config["mapping"],
+                        Directory: csvDirname,
+                        total: totalFiles,
+                        uploaded: success + errors,
+                        cookie: mie.Cookie.value,
+                        URL: mie.URL.value,
+                        practice: mie.practice.value
+                    }
+
+                    worker.postMessage({ type: 'job', row: row, data: data });
+                    worker.busy = true; // Mark worker as busy
+                } else if (skippedFiles + success + errors == totalFiles){
+                    workers.forEach(worker => {
+                        worker.instance.postMessage({type: "exit"})
+                    })
+                }
+            });
+
+            worker.on("exit", () => {});
+        }
+
+        for await (const row of readInputRows(path.join(csvFiles[j]["dirname"], csvBasename))){
+            const key = {
+                dataInput: csvBasename.substring(0, csvBasename.indexOf(".")), 
+                file: row[file], 
+                pat_id: row[pat_id] ? row[pat_id] : "null", 
+                mrnumber: row[mrnumber] ? row[mrnumber] : "null"
+            }
         
-        if (errors.length != 0)
-            errorCSVWriter.writeRecords(errors);  
+            //add files to queue that have not already been migrated
+            // if (!processedFiles.has(getKey(key))){
+                processedFiles.add(getKey(key));
+                docQueue.push(row); //push to queue for workers
+            // } else {
+                // skippedFiles += 1;
+            // }
+            
+            totalFiles += 1;
+            
+            const data = {
+                Mapping: config["mapping"],
+                Directory: csvDirname,
+                total: totalFiles,
+                uploaded: success + errors,
+                cookie: mie.Cookie.value,
+                URL: mie.URL.value,
+                practice: mie.practice.value
+            }
+
+            const availableWorker = workers.find(w => !w.busy);
+            if (availableWorker){
+                const newRow = docQueue.shift();
+                if (newRow){
+                    availableWorker.instance.postMessage({ type: 'job', row: newRow, data: data });
+                    availableWorker.busy = true;
+                }
+            }
+        }
+        
+        //terminate worker threads if all files are duplicates
+        if (skippedFiles == totalFiles){
+            workers.forEach(worker => {
+                worker.instance.postMessage({type: "exit"})
+            })
+        }
+
+        //wait for all worker promises to resolve
+        await Promise.all(workers.map(worker => new Promise(resolve => {
+            worker.instance.once('exit', () => resolve());
+        })))
+
+        process.stdout.write('\x1b[2K'); //clear current line
+        console.log(`\n${'\x1b[1;32m✓\x1b[0m'} ${`\x1b[1m\x1b[1;32m${`Migration job completed for ${csvBasename}`}\x1b[0m`}`);
+        console.log(`${'\x1b[34m➜\x1b[0m'} ${`\x1b[1m\x1b[34mJob Details\x1b[0m`}`)
+        console.log(`${'\x1b[34m➜\x1b[0m'} Files Uploaded: ${`\x1b[34m${success}\x1b[0m`}`)
+        console.log(`${'\x1b[34m➜\x1b[0m'} Files not Uploaded (errors): ${`\x1b[34m${errors}\x1b[0m`}`)
+        console.log(`${'\x1b[34m➜\x1b[0m'} Files Skipped (duplicates): ${`\x1b[34m${skippedFiles}\x1b[0m`}`)
         
         i = 0;
     }

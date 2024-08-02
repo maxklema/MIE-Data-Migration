@@ -52,7 +52,7 @@ const getInputSpecs = () => {
 }
 
 ( async () => {
-    let logo = figlet.textSync("MIE", {
+    let logo = figlet.textSync("MIE ", {
         horizontalLayout: "default",
         verticalLayout: "default",
         width: 80,
