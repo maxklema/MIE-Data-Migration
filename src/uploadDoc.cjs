@@ -1,7 +1,7 @@
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
-const { workerData, parentPort } = require('worker_threads');
+const { parentPort } = require('worker_threads');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
 const path = require('path');
 
@@ -68,7 +68,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     axios.post(URL, form, {
         headers: {
             'Content-Type': 'multi-part/form-data', 
-            'cookie': `wc_mihr_${Practice}_session_id=${Cookie}`
+            'cookie': `wc_miehr_${Practice}_session_id=${Cookie}`
         }
     })
     .then(response => {
@@ -82,7 +82,6 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     .catch((err) => {
         parentPort.postMessage({ success: 'error', row: upload_data, filename: filename, result: err.message});
     });
-
 }
 
 parentPort.on('message', async (message) => {

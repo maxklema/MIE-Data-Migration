@@ -94,7 +94,7 @@ async function uploadDocs(csvFiles, config){
     MAX_WORKERS = configJSON["threads"] ? configJSON["threads"] : os.cpus().length;
 
     //set output directory
-    outputDir = configJSON["output_dir"];
+    configJSON["output_dir"] ? outputDir = configJSON["output_dir"] : "Output/";
     outputDir = `${path.dirname(outputDir)}/${path.basename(outputDir)}`;
     if (!fs.existsSync(outputDir)){
         try {
@@ -179,7 +179,7 @@ async function uploadDocs(csvFiles, config){
                     errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
                 } else {
                     errors += 1;
-                    errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                    // errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
                 }
 
                 // Mark worker as idle
@@ -220,46 +220,52 @@ async function uploadDocs(csvFiles, config){
             }
         
             //add files to queue that have not already been migrated
-            // if (!processedFiles.has(getKey(key))){
+            if (!processedFiles.has(getKey(key))){
                 processedFiles.add(getKey(key));
                 docQueue.push(row); //push to queue for workers
-            // } else {
-                // skippedFiles += 1;
-            // }
+            } else {
+                skippedFiles += 1;
+            }
             
             totalFiles += 1;
-            
-            const data = {
-                Mapping: config["mapping"],
-                Directory: csvDirname,
-                total: totalFiles,
-                uploaded: success + errors,
-                cookie: mie.Cookie.value,
-                URL: mie.URL.value,
-                practice: mie.practice.value
-            }
 
             const availableWorker = workers.find(w => !w.busy);
             if (availableWorker){
                 const newRow = docQueue.shift();
                 if (newRow){
+                    
+                    const data = {
+                        Mapping: config["mapping"],
+                        Directory: csvDirname,
+                        total: totalFiles,
+                        uploaded: success + errors,
+                        cookie: mie.Cookie.value,
+                        URL: mie.URL.value,
+                        practice: mie.practice.value
+                    }
+
                     availableWorker.instance.postMessage({ type: 'job', row: newRow, data: data });
                     availableWorker.busy = true;
                 }
             }
         }
-        
+    
         //terminate worker threads if all files are duplicates
-        if (skippedFiles == totalFiles){
+        if (skippedFiles + success + errors == totalFiles){
             workers.forEach(worker => {
                 worker.instance.postMessage({type: "exit"})
             })
         }
 
-        //wait for all worker promises to resolve
-        await Promise.all(workers.map(worker => new Promise(resolve => {
-            worker.instance.once('exit', () => resolve());
-        })))
+        const workerPromises = workers.map(worker => new Promise(resolve => {
+            worker.instance.once('exit', resolve);
+            worker.instance.once('error', err => {
+                console.error("Worker error: " + err);
+                resolve();
+            });
+        }));
+
+        await Promise.all(workerPromises);
 
         process.stdout.write('\x1b[2K'); //clear current line
         console.log(`\n${'\x1b[1;32m✓\x1b[0m'} ${`\x1b[1m\x1b[1;32m${`Migration job completed for ${csvBasename}`}\x1b[0m`}`);
