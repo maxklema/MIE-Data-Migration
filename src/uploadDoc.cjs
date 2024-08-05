@@ -19,7 +19,12 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
 
     let map;
     let filename;
-    Mapping == "one" ? map = mapOne : map = mapTwo;
+
+    if (typeof Mapping == 'object'){
+        map = new Map(Object.entries(Mapping));
+    } else {
+        Mapping == "one" ? map = mapOne : map = mapTwo;
+    }
 
     function convertFile(extension_length, new_extension, new_storage){
         
@@ -39,10 +44,11 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     //iterate over each key
     for (const [key, value] of map.entries()){
         if (value == "file"){
+
             filename = upload_data[key];
 
             if (!filename){
-                throw Error(`ERROR: Could not find the filepath for this upload. Did you set the correct mapping?`);
+                throw Error(`ERROR: Could not find the filepath for this upload. Is your mapping correct?`);
             }
 
             //convert HTM and TIF file types
@@ -74,13 +80,13 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
     .then(response => {
         const result = response.headers['x-status'];
         if (result != 'success'){
-            parentPort.postMessage({ success: false, row: upload_data, filename: filename, result: response.headers['x-status_desc'] });
+            parentPort.postMessage({ success: false, row: upload_data, result: response.headers['x-status_desc'] });
         } else {
-            parentPort.postMessage({ success: true, row: upload_data, filename: filename, result: response.headers['x-status_desc'] });
+            parentPort.postMessage({ success: true, row: upload_data, result: response.headers['x-status_desc'] });
         } 
     })
     .catch((err) => {
-        parentPort.postMessage({ success: 'error', row: upload_data, filename: filename, result: err.message});
+        parentPort.postMessage({ success: 'error', row: upload_data, result: err.message});
     });
 }
 

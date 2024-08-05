@@ -1,11 +1,9 @@
 const fs = require('fs');
 const csv = require('csv-parser');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const { Worker, parentPort } = require('worker_threads');
+const { Worker  } = require('worker_threads');
 const path = require('path');
 const os = require("os");
-const { pipeline } = require('stream/promises');
-const stream = require('stream');
 const { error } = require('console');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
 const mie = require('@maxklema/mie-api-tools');
@@ -19,11 +17,8 @@ let csvBasename;
 let successCsvPath;
 let errorCsvPath;
 let delimiter;
-
-let file;
-let mrnumber;
-let pat_id;
 let map;
+let inputCSVHeaders;
 
 //gather already-uploaded files
 async function loadFiles(){
@@ -32,13 +27,14 @@ async function loadFiles(){
             .pipe(csv())
             .on('data', (row) => {
                 if (row){
+
                     //adds files already uploaded to a set (come back to)
-                    processedFiles.add(getKey({
-                        dataInput: csvBasename.substring(0, csvBasename.indexOf(".")), 
-                        file: row[file], 
-                        pat_id: row[pat_id] ? row[pat_id] : "null", 
-                        mrnumber: row[mrnumber] ? row[mrnumber] : "null"
-                    }));
+                    let customKey = {dataInput: csvBasename.substring(0, csvBasename.indexOf("."))};
+
+                    for (const header of inputCSVHeaders){
+                        customKey[header] = row[header] ? row[header] : "null";
+                    }
+                    processedFiles.add(getKey(customKey));
                 }
             })
             .on('end', resolve)
@@ -52,21 +48,30 @@ function getKey(obj){
 
 const setMapping = (Mapping) => {
 
-    map = Mapping == "one" ? mapOne : mapTwo;
-
-    for (const [key, value] of map.entries()){
-        switch(value) {
-            case "file":
-                file = key;
-                break;
-            case "pat_id":
-                pat_id = key;
-                break;
-            case "mrnumber":
-                mrnumber = key;
-                break;
-        }
+    if (typeof Mapping == 'object' && Mapping != null){
+        map = new Map(Object.entries(Mapping)); //convert object to mapping
+    } else {
+        map = Mapping == "one" ? mapOne : mapTwo;
     }
+}
+
+function getCSVHeaders(filePath) {
+    return new Promise((resolve, reject) => {
+        const headers = [];
+
+        const stream = fs.createReadStream(filePath)
+            .pipe(csv({
+                separator: delimiter
+            }));
+
+        stream.once('headers', (headerList) => {
+            headers.push(...headerList);
+            stream.destroy();
+        });
+
+        stream.on('close', () => resolve(headers))
+        stream.on('error', reject)
+    })
 }
 
 async function* readInputRows(filename) {
@@ -77,6 +82,7 @@ async function* readInputRows(filename) {
     csvParser.on('error', (err) => {
         throw error(`ERROR: there was an issue reading the headers for \'${path.join(csvFiles[j]["dirname"], csvBasename)}\'. Make sure they are fomratted correctly. ${err}`)
     })
+
     const stream = fs.createReadStream(filename);
     stream.pipe(csvParser)
 
@@ -119,19 +125,36 @@ async function uploadDocs(csvFiles, config){
         let totalFiles = 0;
         let skippedFiles = 0;
         
+        //get headers
+        await getCSVHeaders(path.join(csvFiles[j]["dirname"], csvBasename))
+        .then(headers => inputCSVHeaders = headers)
+        .catch(err => console.error(err));
+
         //set the mapping
         setMapping(config["mapping"]);
+
+        //create output CSV headers
+        let outputHeaders = ``;
+        let headers = [];
+
+        for (const header of inputCSVHeaders){
+            outputHeaders += `${header},`;
+            headers.push({id: `${header}`, title: `${header}`}); 
+        }
+
+        outputHeaders += 'status\n'
+        headers.push({id: 'status', title: 'status'});
 
         //create success and errors.csv file if one does not already exist
         const resultCsvDir = `${outputDir}/${csvBasename.substring(0, csvBasename.indexOf("."))}`        
         if (!fs.existsSync(resultCsvDir)){
             fs.mkdirSync(resultCsvDir, { recursive: true} );
-            fs.writeFileSync(path.join(resultCsvDir, "success.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
+            fs.writeFileSync(path.join(resultCsvDir, "success.csv"), outputHeaders, 'utf8');
         } else if (!fs.existsSync(path.join(resultCsvDir, "success.csv"))){
-            fs.writeFileSync(path.join(resultCsvDir, "success.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
+            fs.writeFileSync(path.join(resultCsvDir, "success.csv"), outputHeaders, 'utf8');
         }
 
-        fs.writeFileSync(path.join(resultCsvDir, "errors.csv"), `${file},${pat_id},${mrnumber},status\n`, 'utf8');
+        fs.writeFileSync(path.join(resultCsvDir, "errors.csv"), outputHeaders, 'utf8');
 
         errorCsvPath = path.join(resultCsvDir, "errors.csv");
         successCsvPath = path.join(resultCsvDir, "success.csv");
@@ -141,24 +164,14 @@ async function uploadDocs(csvFiles, config){
         // success file CSV writer
         const successCSVWriter = createCsvWriter({
             path: successCsvPath,
-            header: [
-                {id: 'file', title: "filePath"},
-                {id: 'pat_id', title: "patID"},
-                {id: 'mrnumber', title: mrnumber},
-                {id: 'status', title: 'status'}
-            ],
+            header: headers,
             append: true
         });
 
         // Error file CSV Writer
         const errorCSVWriter = createCsvWriter({
             path: errorCsvPath,
-            header: [
-                {id: 'file', title: file},
-                {id: 'pat_id', title: pat_id},
-                {id: 'mrnumber', title: mrnumber},
-                {id: 'status', title: 'status'}
-            ],
+            header: headers,
             append: true
         });
 
@@ -171,15 +184,22 @@ async function uploadDocs(csvFiles, config){
             });
                 
             worker.on('message', (message) => {
+
+                let dataToWrite = { status: message["result"] };
+
+                for (const header of inputCSVHeaders){
+                    dataToWrite[header] = message["row"][header] ? message["row"][header] : "null"
+                }
+
                 if (message.success == true){
                     success += 1;
-                    successCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                    successCSVWriter.writeRecords([dataToWrite]);
                 } else if (message.success == false) {
                     errors += 1;
-                    errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                    errorCSVWriter.writeRecords([dataToWrite]);
                 } else {
                     errors += 1;
-                    // errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                    errorCSVWriter.writeRecords([dataToWrite]);
                 }
 
                 // Mark worker as idle
@@ -212,16 +232,17 @@ async function uploadDocs(csvFiles, config){
         }
 
         for await (const row of readInputRows(path.join(csvFiles[j]["dirname"], csvBasename))){
-            const key = {
-                dataInput: csvBasename.substring(0, csvBasename.indexOf(".")), 
-                file: row[file], 
-                pat_id: row[pat_id] ? row[pat_id] : "null", 
-                mrnumber: row[mrnumber] ? row[mrnumber] : "null"
+            
+            //adds files already uploaded to a set (come back to)
+            let customKey = {dataInput: csvBasename.substring(0, csvBasename.indexOf("."))};
+
+            for (const header of inputCSVHeaders){
+                customKey[header] = row[header] ? row[header] : "null";
             }
         
             //add files to queue that have not already been migrated
-            if (!processedFiles.has(getKey(key))){
-                processedFiles.add(getKey(key));
+            if (!processedFiles.has(getKey(customKey))){
+                processedFiles.add(getKey(customKey));
                 docQueue.push(row); //push to queue for workers
             } else {
                 skippedFiles += 1;

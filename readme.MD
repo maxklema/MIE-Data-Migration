@@ -8,6 +8,7 @@ MIE Data Migration is a tool for migrating large volumes of labs and documents f
 - [Set Up](#Set-Up)
   - [Configuration](#Configuration)
 - [Mappings](#Mappings)
+  - [Custom Mappings](#Custom-Mappings)
 - [Outputs](#Outputs)
   - [Success](#Success)
   - [Errors](#Errors)
@@ -42,17 +43,17 @@ Your configuration.json should include everything needed to make a data migratio
 
 The following table describes each available property.
 
-| Property        | Required? | Type         | Description                                                                                                                                                 |
-| --------------- | --------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `username`      | Required  | String       | Your login username for your WebChart system.                                                                                                               |
-| `password`      | Required  | String       | The login password for your WebChart system.                                                                                                                |
-| `handle`        | Required  | String       | The name of your WebChart system.                                                                                                                           |
-| `url`           | Required  | String       | The URL of your WebChart. It should look something similar to `"https://practice.webchartnow.com/webchart.cgi"`.                                            |
-| `input_data`    | Required  | Array Object | A list of filepaths to your input CSV file or files (you can have multiple data migrations).                                                                |
-| `output_dir`    | Optional  | String       | The root output directory where you want the results of your migrations to be stored. The default directory is `Output/`.                                   |
-| `mapping`       | Required  | String       | The mapping translation for your input CSV headers. As of 1.0.0, mappings `one` and `two` are available. To see these mappings, view [mappings](#Mappings). |
-| `threads`       | Optional  | Integer      | The number of worker threads you want working at once. The default is your number of CPU cores.                                                             |
-| `csv_delimiter` | Variable  | String       | The character that separates data in your CSV files. The default delimiter is `,`. If you have a different delimiter, you need to include this header.      |
+| Property        | Required? | Type            | Description                                                                                                                                                                                                                                   |
+| --------------- | --------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `username`      | Required  | String          | Your login username for your WebChart system.                                                                                                                                                                                                 |
+| `password`      | Required  | String          | The login password for your WebChart system.                                                                                                                                                                                                  |
+| `handle`        | Required  | String          | The name of your WebChart system.                                                                                                                                                                                                             |
+| `url`           | Required  | String          | The URL of your WebChart. It should look something similar to `"https://practice.webchartnow.com/webchart.cgi"`.                                                                                                                              |
+| `input_data`    | Required  | Array Object    | A list of filepaths to your input CSV file or files (you can have multiple data migrations).                                                                                                                                                  |
+| `output_dir`    | Optional  | String          | The root output directory where you want the results of your migrations to be stored. The default directory is `Output/`.                                                                                                                     |
+| `mapping`       | Required  | String / Object | The mapping translation for your input CSV headers. As of 1.0.0, pre-templated mappings `one` and `two` are available. To see these mappings, view [mappings](#Mappings). To create custom mappings, see [custom mappings](#Custom-Mappings). |
+| `threads`       | Optional  | Integer         | The number of worker threads you want working at once. The default is your number of CPU cores.                                                                                                                                               |
+| `csv_delimiter` | Variable  | String          | The character that separates data in your CSV files. The default delimiter is `,`. If you have a different delimiter, you need to include this header.                                                                                        |
 
 ## Mappings
 
@@ -85,19 +86,38 @@ For a detailed description of each header, see the 'Documents' API documentation
 
 > **NOTE:** Some EHRs may export data with headers not included in this list. In that case, you do not have to remove them from the CSV import file. They will be ignored by the program.
 
+### Custom Mappings
+
+Custom mappings can also be created. In your config.json file, instead of assigning `"mapping"` to a string, assign it to an object (which will be converted to a map).
+
+As an example, for an input CSV file with the headers `FILE_PATH`, `PAT_ID`, `MRNUMBER`, and `DOC_TYPE`, a custom mapping can be created like this:
+
+_Config.json_
+
+```JSON
+"mapping": {
+    "FILE_PATH": "file",
+    "DOC_TYPE": "doc_type",
+    "MRNUMBER": "mrnumber",
+    "PAT_ID": "pat_id"
+},
+```
+
+> **NOTE:** The keys can be anything you want, but ensure that the value is a valid header. To see a list of valid headers, see the 'translation' column in [mappings](#Mappings).
+
 ## Outputs
 
 For each input CSV file, a folder will be created with the name of that file for the job output. Inside, there will be a success.csv and an errors.csv file.
 
 ### Success
 
-A success.csv file will have four headers: `filepath`, `patid`, `mrnumber`, and `status`.
+The headers in the sucess.csv file will be the same headers as the input CSV file.
 
 If you re-run a migration job, **do not delete your success.csv file**. This file is used to keep track of files that have already been uploaded and will avoid uploading duplicate files in future jobs.
 
 ### Errors
 
-An errors.csv file will have four headers: `filepath`, `patid`, `mrnumber`, and `status`.
+The headers in the errors.csv file will be the same headers as the input CSV file.
 
 A new errors.csv file is generated for each migration job, so duplicate error messages will not appear.
 
