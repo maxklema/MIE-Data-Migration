@@ -1,11 +1,9 @@
 const fs = require('fs');
 const csv = require('csv-parser');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const { Worker, parentPort } = require('worker_threads');
+const { Worker  } = require('worker_threads');
 const path = require('path');
 const os = require("os");
-const { pipeline } = require('stream/promises');
-const stream = require('stream');
 const { error } = require('console');
 const { mapOne, mapTwo } = require('./docMappings.cjs')
 const mie = require('@maxklema/mie-api-tools');
@@ -52,7 +50,11 @@ function getKey(obj){
 
 const setMapping = (Mapping) => {
 
-    map = Mapping == "one" ? mapOne : mapTwo;
+    if (typeof Mapping == 'object' && Mapping != null){
+        map = new Map(Object.entries(Mapping)); //convert object to mapping
+    } else {
+        map = Mapping == "one" ? mapOne : mapTwo;
+    }
 
     for (const [key, value] of map.entries()){
         switch(value) {
@@ -67,6 +69,7 @@ const setMapping = (Mapping) => {
                 break;
         }
     }
+
 }
 
 async function* readInputRows(filename) {
@@ -179,7 +182,7 @@ async function uploadDocs(csvFiles, config){
                     errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
                 } else {
                     errors += 1;
-                    // errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
+                    errorCSVWriter.writeRecords([{ file: message["row"][file], pat_id: message["row"][pat_id] ?  message["row"][pat_id] : "null", mrnumber:  message["row"][mrnumber] ?  message["row"][mrnumber] : "null", status: message["result"]}]);
                 }
 
                 // Mark worker as idle
