@@ -18,7 +18,7 @@ describe('Data Migration Testing', async function() {
             "handle": process.env.HANDLE,
             "url": process.env.URL,
             "mapping": "one",
-            "input_data": ["./tests/Data/uploadOne.csv"],
+            "input_data": ["./tests/data/uploadOne.csv"],
             "output_dir":  "./tests/Output/",
             "threads": 2
         }
@@ -59,7 +59,7 @@ describe('Data Migration Testing', async function() {
             "handle": process.env.HANDLE,
             "url": process.env.URL,
             "mapping": "two",
-            "input_data": ["./tests/Data/uploadThree.csv"],
+            "input_data": ["./tests/data/uploadThree.csv"],
             "output_dir":  "./tests/Output/",
             "threads": 4
         }
@@ -105,7 +105,7 @@ describe('Data Migration Testing', async function() {
                 "MRNUMBER": "mrnumber",
                 "PATID": "pat_id"
             },
-            "input_data": ["./tests/Data/uploadTwo.csv"],
+            "input_data": ["./tests/data/uploadTwo.csv"],
             "output_dir":  "./tests/Output/",
             "threads": 8,
             "csv_delimiter": "|"
@@ -155,7 +155,7 @@ describe('Data Migration Testing', async function() {
             "handle": process.env.HANDLE,
             "url": process.env.URL,
             "mapping": "one",
-            "input_data": ["./tests/Data/uploadOne.csv", "./tests/Data/uploadFour.csv"],
+            "input_data": ["./tests/data/uploadOne.csv", "./tests/data/uploadFour.csv"],
             "output_dir":  "./tests/Output/",
             "threads": 2
         }
@@ -196,7 +196,7 @@ describe('Data Migration Testing', async function() {
                 "MRNUMBER": "mrnumber",
                 "PATID": "pat_id"
             },
-            "input_data": ["./tests/Data/uploadFive.csv"],
+            "input_data": ["./tests/data/uploadFive.csv"],
             "output_dir":  "./tests/Output/",
             "threads": 8,
             "csv_delimiter": "|"
