@@ -62,7 +62,7 @@ async function uploadSingleDocument(upload_data, URL, Cookie, Practice, Mapping,
             process.stdout.write('\x1b[2K'); //clear current line
             process.stdout.write(`${'\x1b[33m➜\x1b[0m'} Upload Status: ${bar} | Uploading ${`\x1b[34m${path.join(Directory, filename)}\x1b[0m`} \r`);
 
-            form.append(value, fs.createReadStream(path.join('./Data', filename)));
+            form.append(value, fs.createReadStream(path.join(Directory, filename)));
 
         } else {
             let headerValue;
