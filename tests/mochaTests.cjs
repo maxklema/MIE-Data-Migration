@@ -131,7 +131,7 @@ describe('Data Migration Testing', async function() {
 
         let expected = [
             "AccountNo,MRNUMBER,PatLName,PatFName,DOB,PatID,CustomName,FileName,DOCTYPE,ecwCategory,Description,FILEPATH,ScanDate,ScannedBy,EncID,status", 
-            "42189,10019,Wiley,Damien,03/28/1982,78572,78572_892256917_InsuranceCardSideA.jpg,78572_892256917_InsuranceCardSideA.jpg,WCPHOTO,Patient Documents,Image document for patient: 78572,Files/29.jpg,2013-04-02 00:00:00.0,82280,0",
+            "42189,10019,Wiley,Damien,03/28/1982,78572,78572_892256917_InsuranceCardSideA.jpg,78572_892256917_InsuranceCardSideA.jpg,WCPHOTO,Patient Documents,Image document for patient: 78572,More Files/29.jpg,2013-04-02 00:00:00.0,82280,0",
             "42189,10019,Wiley,Damien,03/28/1982,78572,<filename>,<filename>,ORDIM,Patient Documents,Image document for patient: 78572,More Files/Doe.html,2013-04-02 00:00:00.0,82280,0", 
         ] 
         assert.deepEqual(success.sort(), expected.sort());
@@ -222,7 +222,7 @@ describe('Data Migration Testing', async function() {
 
         let expected = [
             "AccountNo,MRNUMBER,PatLName,PatFName,DOB,PatID,CustomName,FileName,DOCTYPE,ecwCategory,Description,FILEPATH,ScanDate,ScannedBy,EncID,status", 
-            "42189,10019,Wiley,Damien,03/28/1982,78572,78572_892256917_InsuranceCardSideA.jpg,78572_892256917_InsuranceCardSideA.jpg,WCPHOTO,Patient Documents,Image document for patient: 78572,Files/29.jpg,2013-04-02 00:00:00.0,82280,0"
+            "42189,10019,Wiley,Damien,03/28/1982,78572,78572_892256917_InsuranceCardSideA.jpg,78572_892256917_InsuranceCardSideA.jpg,WCPHOTO,Patient Documents,Image document for patient: 78572,More Files/29.jpg,2013-04-02 00:00:00.0,82280,0"
         ]
 
         assert.deepEqual(success.sort(), expected.sort());
@@ -239,7 +239,7 @@ describe('Data Migration Testing', async function() {
 
         expected = [
             "AccountNo,MRNUMBER,PatLName,PatFName,DOB,PatID,CustomName,FileName,DOCTYPE,ecwCategory,Description,FILEPATH,ScanDate,ScannedBy,EncID,status", 
-            "42189,10019,Wiley,Damien,03/28/1982,78572,78572_892256917_InsuranceCardSideA.jpg,78572_892256917_InsuranceCardSideA.jpg,WCPHOTO,Patient Documents,Image document for patient: 78572,Files/29.jpg,2013-04-02 00:00:00.0,82280,0"
+            "42189,10019,Wiley,Damien,03/28/1982,78572,78572_892256917_InsuranceCardSideA.jpg,78572_892256917_InsuranceCardSideA.jpg,WCPHOTO,Patient Documents,Image document for patient: 78572,More Files/29.jpg,2013-04-02 00:00:00.0,82280,0"
         ]
         
         assert.deepEqual(errors.sort(), expected.sort());
