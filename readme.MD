@@ -2,6 +2,10 @@
 
 MIE Data Migration is a tool for migrating large volumes of labs and documents from EHRs to WebChart. To see a full list of features, see the [table of contents](#Table-of-Contents) below. To demo this yourself, see the [installation](#Installation) guide.
 
+### Walkthrough
+
+For a video walkthrough of basic program functionality, see [https://www.youtube.com/watch?v=MJ_uD3w7sKw](https://www.youtube.com/watch?v=MJ_uD3w7sKw).
+
 ## Table of Contents
 
 - [Installation](#Installation)
