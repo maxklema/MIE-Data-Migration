@@ -3,19 +3,21 @@
   "version": "1.0.0",
   "main": "src/migrate-data.cjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx mocha tests/mochaTests.cjs"
   },
   "author": "Maxwell Klema",
   "license": "ISC",
   "description": "",
   "dependencies": {
     "@maxklema/mie-api-tools": "^1.0.9",
+    "assert": "^2.1.0",
     "axios": "^1.7.2",
     "csv": "^6.3.10",
     "csv-parser": "^3.0.0",
     "csv-writer": "^1.6.0",
     "figlet": "^1.7.0",
     "form-data": "^4.0.0",
+    "mocha": "^10.7.0",
     "stream": "^0.0.3",
     "yargs": "^17.7.2"
   }
