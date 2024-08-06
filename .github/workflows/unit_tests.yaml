@@ -30,8 +30,6 @@ jobs:
         run: npm ci
       - name: Change permissions for test files
         run: sudo chmod -R 755 tests/
-      - name: Look for Data/
-        run: ls -la tests
       - name: Perform Mocha Tests
         run: npm test
         env:
