@@ -17,7 +17,6 @@ let csvBasename;
 let successCsvPath;
 let errorCsvPath;
 let delimiter;
-let map;
 let inputCSVHeaders;
 
 //gather already-uploaded files
@@ -97,7 +96,7 @@ async function uploadDocs(csvFiles, config){
     configJSON = config;
 
     //set number of worker threads
-    MAX_WORKERS = configJSON["threads"] ? configJSON["threads"] : os.cpus().length;
+    MAX_WORKERS = configJSON["threads"] ? configJSON["threads"] : os.cpus().length / 2;
 
     //set output directory
     configJSON["output_dir"] ? outputDir = configJSON["output_dir"] : "Output/";
@@ -124,6 +123,7 @@ async function uploadDocs(csvFiles, config){
         let errors = 0;
         let totalFiles = 0;
         let skippedFiles = 0;
+        processedFiles.clear(); 
         
         //get headers
         await getCSVHeaders(path.join(csvFiles[j]["dirname"], csvBasename))

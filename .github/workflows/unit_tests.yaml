@@ -1,0 +1,67 @@
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: Node.js CI
+
+on:
+  push:
+    branches: ["main", "mocha-tests"]
+  pull_request:
+    branches: ["main", "mocha-tests"]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node-version: [16.x, 18.x, 20.x, 22.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+      - name: Install Dependencies
+        run: npm ci
+      - name: Change permissions for test files
+        run: sudo chmod -R 755 tests/
+      - name: Perform Mocha Tests
+        run: npm test
+        env:
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          URL: ${{ secrets.URL }}
+          HANDLE: ${{ secrets.HANDLE }}
+
+  rocky-linux:
+    runs-on: ubuntu-latest
+
+    container:
+      image: rockylinux:8
+
+    strategy:
+      matrix:
+        node-version: [16, 18, 20, 22]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: install Node.js
+        run: |
+          curl -fsSL https://rpm.nodesource.com/setup_${{ matrix.node-version }}.x | bash -
+          yum install -y nodejs
+      - name: Install Dependencies
+        run: npm install
+      - name: Change permissions for test files
+        run: chmod -R 777 tests/
+      - name: Perform Mocha Tests
+        run: npm test
+        env:
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          URL: ${{ secrets.URL }}
+          HANDLE: ${{ secrets.HANDLE }}
