@@ -1,9 +1,5 @@
 node_modules
 *json
 Input Data
-Upload Status
-Data
-Output/*
-*.csv
 config.json
 .DS_Store
